@@ -1,7 +1,7 @@
 from room import Room
 from player import Player
 from world import World
-
+from utils import Queue, Stack
 import random
 
 # Load world
@@ -21,8 +21,74 @@ player = Player("Name", world.startingRoom)
 
 
 # FILL THIS IN
-traversalPath = ['n', 's']
+traversalPath = []
+# checks our visited graph to see if it still contains ?s
+def has_unknowns(graph):
+    for key in graph:
+        if '?' in graph[key].values():
+            return True
+    return False
 
+# returns the first ? room that is not yet visited
+# when we enter a new room we immediately populate visited at the key of that room id with its exits. Here we look through those exits for a room we haven't visited yet.
+def get_next_direction(visited, current_room):
+    current = current_room.id
+    exits = visited[current]
+    for direction in exits:
+        if exits[direction] == '?' and current_room.getRoomInDirection(direction).id not in visited:
+            return direction
+    return None
+
+# uses our stack to traverse backwards until we find an unexplored node
+# Our stack stored the steps we need to take to traversebackwards. Take a step backwords and check if the room we are in still has ?, that's the direction we want to explore next
+def find_next_node(traversalPath, visited, current_room, stack, opposite_directions):
+    while True:
+        next_direction = stack.pop()
+        traversalPath.append(next_direction)
+        next_room = current_room.getRoomInDirection(next_direction)
+        if '?' in visited[next_room.id].values():
+            return next_room.id
+        current_room = next_room
+
+# Takes in our world class instance and loads directions for traversal into traversalPath
+def traversal(world, traversalPath):
+    current = 0
+    s = Stack()
+    current_room = world.rooms[current]
+    visited = {0 : {}}
+    opposite_directions = {'n': 's', 's': 'n', 'e': 'w', 'w': 'e'}
+    for direction in current_room.getExits():
+        visited[current_room.id][direction] = '?'
+    while len(visited) < len(world.rooms) and has_unknowns(visited):
+        current_room = world.rooms[current]
+        # First time visiting this room, populate visited at room.id with it's exits as ?
+        if current_room.id not in visited:
+            visited[current_room.id] = {}
+            for direction in current_room.getExits():
+                visited[current_room.id][direction] = '?'
+        next_direction = get_next_direction(visited, current_room)
+        # If there isn't an adjacent room that we haven't explored yet, traverse backwards to find the next room
+        if not next_direction:
+            current = find_next_node(traversalPath, visited, current_room, s, opposite_directions)
+        else:
+            # Otherwise append the next direction to our walking path
+            traversalPath.append(next_direction)
+            next_room = current_room.getRoomInDirection(next_direction)
+            # In visited, the current_room[next_direction] is not longer unknown, populate it with the room id
+            visited[current][next_direction] = next_room.id
+            # We'll set up a two way relationship here, so if the new room hasn't been visited, populate visited at the new room with ?
+            if next_room.id not in visited:
+                visited[next_room.id] = {}
+                for direction in next_room.getExits():
+                    visited[next_room.id][direction] = '?'
+            # Set the reverse direction of the next room to the current room
+            visited[next_room.id][opposite_directions[next_direction]] = current_room.id
+            # Store the opposite of our path so we can travel backwards
+            s.push(opposite_directions[next_direction])
+            current = next_room.id
+            
+print(traversal(world, traversalPath))
+print(traversalPath)
 
 # TRAVERSAL TEST
 visited_rooms = set()
